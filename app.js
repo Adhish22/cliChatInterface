@@ -1,5 +1,13 @@
 const express = require('express')
 const app = express()
+const mongoose = require('mongoose')
+
+mongoose.Promise = global.Promise;
+
+const db = mongoose.connect('mongodb://localhost:27017/usercli', 
+    {'useNewUrlParser': true, 'useUnifiedTopology': true});
+
+const User = require('./models/user')
 
 
 //set the template engine ejs
@@ -11,7 +19,7 @@ app.use(express.static('public'))
 
 //routes
 app.get('/', (req, res) => {
-	res.render('index')
+    res.render('index')
 })
 
 //Listen on port 3000
@@ -25,10 +33,10 @@ const io = require("socket.io")(server)
 
 //listen on every connection
 io.on('connection', (socket) => {
-	console.log('New user connected')
+    console.log('New user connected')
 
-	//default username
-	socket.username = "Anonymous"
+    //default username
+    socket.username = "Anonymous"
 
     //listen on change_username
     socket.on('change_username', (data) => {
@@ -43,6 +51,56 @@ io.on('connection', (socket) => {
 
     //listen on typing
     socket.on('typing', (data) => {
-    	socket.broadcast.emit('typing', {username : socket.username})
+        socket.broadcast.emit('typing', {username : socket.username})
     })
 })
+
+// CLI 
+
+ //Add User
+ const addUser = (user) => {
+  User.create(user).then(user => {
+    console.info('New User Added');
+    db.close();
+  });
+} 
+
+ // Find User
+const findUser = (name) => {
+  // Make case insensitive
+  const search = new RegExp(name, 'i');
+  User.find({$or: [{name: search}]})
+    .then(user => {
+      console.info(user);
+      console.info(`${user.length} matches`);
+      db.close();
+    });
+}
+
+// Remove User
+const removeUser = (_id) => {
+  User.remove({ _id })
+    .then(user => {
+      console.info('User Removed');
+      db.close();
+    });
+}
+
+// List Users
+const listUsers = () => {
+  User.find()
+    .then(users => {
+      console.info(users);
+      console.info(`${users.length} users`);
+      db.close();
+    });
+}
+
+// Export All Methods
+module.exports = {
+  addUser,
+  findUser,
+  removeUser,
+  listUsers
+}
+
